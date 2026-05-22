@@ -1,0 +1,93 @@
+---
+# =============================================================================
+# deployment-whoami.yaml
+# Production-grade deployment of the whoami demo application
+# Demonstrates: resource limits, anti-affinity, health probes, labels
+# Author: Bartosz Suszko | SRE Homelab Project
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aras-demo-app
+  namespace: default
+  labels:
+    app: aras-demo-app
+    version: "1.0"
+    managed-by: kubectl
+    environment: lab
+  annotations:
+    description: "Demo app for SRE load balancing and observability testing"
+    owner: "bartosz.suszko"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aras-demo-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0        # Zero-downtime rolling update
+  template:
+    metadata:
+      labels:
+        app: aras-demo-app
+        version: "1.0"
+    spec:
+      # Anti-affinity: spread pods across different nodes (HA)
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - aras-demo-app
+                topologyKey: kubernetes.io/hostname
+
+      containers:
+        - name: whoami
+          image: containous/whoami:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              protocol: TCP
+
+          # Resource limits (required by Azure Policy)
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+
+          # Liveness probe: restart container if unhealthy
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+
+          # Readiness probe: remove from LB if not ready
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 2
+
+          # Security context: run as non-root (Azure Policy compliance)
+          securityContext:
+            runAsNonRoot: false   # whoami requires root; documented exception
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+
+      # Graceful termination
+      terminationGracePeriodSeconds: 30

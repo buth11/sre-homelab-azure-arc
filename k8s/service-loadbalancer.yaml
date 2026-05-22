@@ -1,0 +1,29 @@
+---
+# =============================================================================
+# service-loadbalancer.yaml
+# LoadBalancer Service using K3s built-in Klipper LB
+# Exposes aras-demo-app on port 8080 (port 80 reserved by Traefik ingress)
+# Author: Bartosz Suszko | SRE Homelab Project
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: aras-demo-app
+  namespace: default
+  labels:
+    app: aras-demo-app
+    environment: lab
+  annotations:
+    description: "LoadBalancer exposing demo app via K3s Klipper on port 8080"
+spec:
+  type: LoadBalancer
+  selector:
+    app: aras-demo-app
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080          # External port (8080 avoids Traefik conflict on 80)
+      targetPort: 80      # Container port
+  # K3s Klipper LB will assign all node IPs as EXTERNAL-IP
+  # Round-robin load balancing is handled at the iptables level (kube-proxy)
+  sessionAffinity: None
