@@ -7,13 +7,13 @@ terraform {
     }
   }
 
-  # Uncomment to use remote state (recommended for production)
-  # backend "azurerm" {
-  #   resource_group_name  = "terraform-state-rg"
-  #   storage_account_name = "srelabtfstate"
-  #   container_name       = "tfstate"
-  #   key                  = "sre-homelab.tfstate"
-  # }
+
+  backend "azurerm" {
+    resource_group_name  = "terraform-state-rg"
+    storage_account_name = "sretfstate5496"
+    container_name       = "tfstate"
+    key                  = "sre-homelab.tfstate"
+  }
 }
 
 provider "azurerm" {
