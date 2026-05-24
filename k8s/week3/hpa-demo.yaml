@@ -1,0 +1,23 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: aras-demo-hpa
+  namespace: default
+spec:
+  # Wskazujemy co HPA ma skalowac
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aras-demo-app
+  # Minimalna liczba replik - nigdy nie zejdzie ponizej 2
+  minReplicas: 2
+  # Maksymalna liczba replik - nigdy nie przekroczy 8
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # Gdy srednie CPU Podow przekroczy 50% - HPA dodaje repliki
+          averageUtilization: 50

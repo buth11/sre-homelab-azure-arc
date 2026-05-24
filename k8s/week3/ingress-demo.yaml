@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo-ingress
+  namespace: default
+  annotations:
+    # Mowimy Kubernetesowi ze ten Ingress ma byc obslugiwany przez Traefika
+    kubernetes.io/ingress.class: "traefik"
+spec:
+  # Wskazujemy Secret z certyfikatem TLS dla tej domeny
+  tls:
+    - hosts:
+        - demo.sre-lab.local
+      secretName: sre-lab-tls
+  # Reguly routingu - dla jakiej domeny i sciezki, do jakiego serwisu
+  rules:
+    - host: demo.sre-lab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                # Nazwa serwisu do ktorego Traefik przekazuje ruch
+                name: aras-demo-app
+                port:
+                  number: 8080

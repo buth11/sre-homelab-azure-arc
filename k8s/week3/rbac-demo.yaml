@@ -1,0 +1,48 @@
+---
+# ServiceAccount - konto techniczne dla aplikacji demo
+# Kazda aplikacja w produkcji powinna miec swoje konto
+# zamiast uzyc wspolnego "default"
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aras-demo-sa
+  namespace: default
+  labels:
+    app: aras-demo-app
+
+---
+# Role - definicja co wolno robic w namespace default
+# Tylko odczyt Podow - aplikacja moze sprawdzac swoje repliki
+# ale nie moze nic kasowac ani tworzyc
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aras-demo-role
+  namespace: default
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    # get = pobierz jeden Pod
+    # list = listuj wszystkie Pody
+    # watch = obserwuj zmiany w czasie rzeczywistym
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+
+---
+# RoleBinding - przypisuje Role do ServiceAccount
+# Bez tego ServiceAccount nie ma zadnych uprawnien
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aras-demo-rolebinding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: aras-demo-sa
+    namespace: default
+roleRef:
+  kind: Role
+  apiRef: rbac.authorization.k8s.io
+  name: aras-demo-role

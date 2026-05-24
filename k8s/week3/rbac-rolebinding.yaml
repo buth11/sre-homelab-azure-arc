@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aras-demo-rolebinding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: aras-demo-sa
+    namespace: default
+roleRef:
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+  name: aras-demo-role
