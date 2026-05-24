@@ -4,7 +4,7 @@
 > Infrastructure-as-Code, observability, FinOps, Policy as Code, CI/CD pipeline
 > automation, and advanced Kubernetes operations using K3s and Microsoft Azure Arc.**
 
-![Week](https://img.shields.io/badge/Progress-Week%203%20Complete-0078d4)
+![Part](https://img.shields.io/badge/Progress-Part%203%20Complete-0078d4)
 ![Cost](https://img.shields.io/badge/Azure%20Cost-0.00%20USD-107c10)
 ![SLO](https://img.shields.io/badge/SLO-100%25%20Availability-107c10)
 ![Pipeline](https://img.shields.io/badge/CI%2FCD-Azure%20DevOps-0078d4)
@@ -103,7 +103,7 @@ flowchart LR
 
 ## Key SRE Practices Demonstrated
 
-### Week 1 — Hybrid Cloud Foundation
+### Part 1 — Hybrid Cloud Foundation
 - 3-node Kubernetes cluster connected to Azure Arc
 - Azure Monitor + Container Insights + KQL observability
 - Prometheus + Grafana local monitoring stack
@@ -112,14 +112,14 @@ flowchart LR
 - SLO: 100% node availability (184/184 samples Ready)
 - Blameless postmortem — POST-001 etcd Split-Brain
 
-### Week 2 — IaC, CI/CD, and Automation
+### Part 2 — IaC, CI/CD, and Automation
 - Terraform remote state in Azure Blob Storage (locking, versioning)
 - Service Principal — non-interactive auth (no device codes)
 - Azure DevOps 2-stage pipeline: plan → approval gate → apply (4m 24s)
 - SSH key auth to GitHub — no more tokens
 - 8 real issues documented with root cause and resolution
 
-### Week 3 — Advanced Kubernetes Operations
+### Part 3 — Advanced Kubernetes Operations
 - **Ingress + TLS**: Traefik routes HTTPS by domain — `https://demo.sre-lab.local`
 - **HPA**: Autoscaling 2→8 replicas at 860% CPU load, scale-down after 5 min cooldown
 - **NetworkPolicy**: Pod-level firewall — unauthorized pods blocked, Traefik allowed
@@ -129,7 +129,7 @@ flowchart LR
 
 ## Lab Results
 
-| Metric | Week 1 | Week 2 | Week 3 |
+| Metric | Part 1 | Part 2 | Part 3 |
 |--------|--------|--------|--------|
 | Cluster nodes | 3/3 Ready | — | — |
 | SLO Availability | 100% | — | — |
@@ -174,8 +174,8 @@ sre-homelab-azure-arc/
 │   └── kql-queries.md                  # 10 production-ready KQL queries + SLO
 └── docs/
     ├── POST-001-etcd-split-brain.md    # Blameless postmortem
-    ├── SRE_Case_Study_PL_v2.pdf        # Case study Polish (Week 1+2)
-    ├── SRE_Case_Study_EN_v2.pdf        # Case study English (Week 1+2)
+    ├── SRE_Case_Study_PL_v2.pdf        # Case study Polish (Part 1+2)
+    ├── SRE_Case_Study_EN_v2.pdf        # Case study English (Part 1+2)
     └── Przewodnik_Techniczny_SRE_Lab.docx  # Technical guide (all technologies)
 ```
 
@@ -239,7 +239,7 @@ kubectl apply -f k8s/deployment-whoami.yaml
 kubectl apply -f k8s/service-loadbalancer.yaml
 ```
 
-### Step 7 — Ingress with TLS (Week 3)
+### Step 7 — Ingress with TLS (Part 3)
 ```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout server.key -out server.crt \
@@ -251,7 +251,7 @@ echo "192.168.122.10 demo.sre-lab.local" | sudo tee -a /etc/hosts
 # Open https://demo.sre-lab.local in browser
 ```
 
-### Step 8 — HPA (Week 3)
+### Step 8 — HPA (Part 3)
 ```bash
 kubectl apply -f k8s/week3/hpa-demo.yaml
 # Generate load to trigger autoscaling:
@@ -260,7 +260,7 @@ ab -n 50000 -c 50 http://192.168.122.10:8080/
 # Watch: kubectl get hpa -w
 ```
 
-### Step 9 — NetworkPolicy + RBAC (Week 3)
+### Step 9 — NetworkPolicy + RBAC (Part 3)
 ```bash
 kubectl apply -f k8s/week3/network-policy.yaml
 kubectl apply -f k8s/week3/rbac-demo.yaml
