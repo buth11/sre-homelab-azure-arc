@@ -159,7 +159,7 @@ sre-homelab-azure-arc/
 ├── k8s/
 │   ├── deployment-whoami.yaml          # Demo app: limits, anti-affinity, probes
 │   ├── service-loadbalancer.yaml       # K3s Klipper LB on port 8080
-│   └── week3/
+│   └── part3/
 │       ├── ingress-demo.yaml           # Traefik Ingress + TLS for demo.sre-lab.local
 │       ├── hpa-demo.yaml               # HPA: 2-8 replicas, CPU threshold 50%
 │       ├── network-policy.yaml         # NetworkPolicy: allow kube-system + monitoring
@@ -174,8 +174,10 @@ sre-homelab-azure-arc/
 │   └── kql-queries.md                  # 10 production-ready KQL queries + SLO
 └── docs/
     ├── POST-001-etcd-split-brain.md    # Blameless postmortem
-    ├── SRE_Case_Study_PL_v2.pdf        # Case study Polish (Part 1+2)
-    ├── SRE_Case_Study_EN_v2.pdf        # Case study English (Part 1+2)
+    ├── SRE_Case_Study_PL_v3.pdf        # Case study Polish (Parts 1-3)
+    ├── SRE_Case_Study_EN_v3.pdf        # Case study English (Parts 1-3)
+    ├── Przewodnik_W3_Ingress_HPA_NetworkPolicy_RBAC.pdf  # Technical guide Part 3
+    └── .archive/                       # Old versions (hidden, preserved locally)
     └── Przewodnik_Techniczny_SRE_Lab.docx  # Technical guide (all technologies)
 ```
 
@@ -246,14 +248,14 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -subj "/CN=demo.sre-lab.local/O=SRE-Lab" \
   -addext "subjectAltName=DNS:demo.sre-lab.local"
 kubectl create secret tls sre-lab-tls --cert=server.crt --key=server.key
-kubectl apply -f k8s/week3/ingress-demo.yaml
+kubectl apply -f k8s/part3/ingress-demo.yaml
 echo "192.168.122.10 demo.sre-lab.local" | sudo tee -a /etc/hosts
 # Open https://demo.sre-lab.local in browser
 ```
 
 ### Step 8 — HPA (Part 3)
 ```bash
-kubectl apply -f k8s/week3/hpa-demo.yaml
+kubectl apply -f k8s/part3/hpa-demo.yaml
 # Generate load to trigger autoscaling:
 sudo apt-get install -y apache2-utils
 ab -n 50000 -c 50 http://192.168.122.10:8080/
@@ -262,9 +264,9 @@ ab -n 50000 -c 50 http://192.168.122.10:8080/
 
 ### Step 9 — NetworkPolicy + RBAC (Part 3)
 ```bash
-kubectl apply -f k8s/week3/network-policy.yaml
-kubectl apply -f k8s/week3/rbac-demo.yaml
-kubectl apply -f k8s/week3/rbac-rolebinding.yaml
+kubectl apply -f k8s/part3/network-policy.yaml
+kubectl apply -f k8s/part3/rbac-demo.yaml
+kubectl apply -f k8s/part3/rbac-rolebinding.yaml
 # Verify:
 kubectl auth can-i list pods --as=system:serviceaccount:default:aras-demo-sa
 kubectl auth can-i delete pods --as=system:serviceaccount:default:aras-demo-sa
