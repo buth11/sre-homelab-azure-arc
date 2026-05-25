@@ -2,13 +2,14 @@
 
 > **A Proof-of-Value project demonstrating hybrid cloud orchestration, Kubernetes,
 > Infrastructure-as-Code, observability, FinOps, Policy as Code, CI/CD pipeline
-> automation, and advanced Kubernetes operations using K3s and Microsoft Azure Arc.**
+> automation, advanced Kubernetes operations, GitOps, and security scanning using K3s and Microsoft Azure Arc.**
 
-![Part](https://img.shields.io/badge/Progress-Part%203%20Complete-0078d4)
+![Part](https://img.shields.io/badge/Progress-Part%204%20Complete-0078d4)
 ![Cost](https://img.shields.io/badge/Azure%20Cost-0.00%20USD-107c10)
 ![SLO](https://img.shields.io/badge/SLO-100%25%20Availability-107c10)
 ![Pipeline](https://img.shields.io/badge/CI%2FCD-Azure%20DevOps-0078d4)
-![HPA](https://img.shields.io/badge/HPA-2--8%20replicas-107c10)
+![GitOps](https://img.shields.io/badge/GitOps-FluxCD%202.8.8-5468ff)
+![Security](https://img.shields.io/badge/Security-Trivy%20%2B%20Defender-red)
 
 ---
 
@@ -17,8 +18,8 @@
 This project documents the design, deployment, and operation of a production-grade
 **hybrid Edge-to-Cloud environment** built on commodity hardware. A three-node Kubernetes
 cluster running on-premises (Olsztyn, Poland) is connected to Microsoft Azure through
-Azure Arc, enabling centralized governance, monitoring, policy enforcement, and CI/CD
-automation from a single cloud control plane.
+Azure Arc, enabling centralized governance, monitoring, policy enforcement, CI/CD
+automation, and GitOps from a single cloud control plane.
 
 Built to demonstrate hands-on SRE competencies directly relevant to managing
 enterprise SaaS infrastructure at scale.
@@ -39,6 +40,8 @@ flowchart LR
         NETPOL["NetworkPolicy\nLeast-privilege firewall"]
         RBAC["RBAC\nServiceAccount · Least privilege"]
         PROM["Prometheus + Grafana\nLocal Monitoring Stack"]
+        FLUX["FluxCD 2.8.8\nGitOps Controller"]
+        MDC["Defender for Cloud\nDaemonSet · mdc namespace"]
         MASTER --- W1
         MASTER --- W2
         W1 --- TRAEFIK
@@ -49,6 +52,7 @@ flowchart LR
         GH["GitHub\ngit push via SSH"]
         ADO["Azure DevOps Pipeline\nplan + approval gate + apply"]
         GH --> ADO
+        GH --> FLUX
     end
 
     TUNNEL["Azure Arc Tunnel\nHTTPS/443 · mTLS\nService Principal Auth"]
@@ -62,8 +66,10 @@ flowchart LR
         TF["Terraform Remote State\nsretfstate5496 · Blob Storage"]
         SP["Service Principal\nsre-homelab-sp · Contributor"]
         COST["Cost Management\nFinOps · 0.00 USD spent"]
+        DEF["Defender for Containers\nStandard · 30-day trial"]
         ARC --> MON
         ARC --> POL
+        ARC --> DEF
         MON --> INS
         ADO --> TF
         SP --> ARC
@@ -86,6 +92,9 @@ flowchart LR
 | Autoscaling | HPA (autoscaling/v2) | CPU-based pod autoscaling 2-8 replicas |
 | Network Security | NetworkPolicy | Pod-level firewall (least privilege) |
 | Access Control | RBAC + ServiceAccount | Application-level least privilege |
+| GitOps | FluxCD 2.8.8 | Git-driven cluster reconciliation |
+| Security Scanning | Trivy 0.70.0 | Container image CVE scanning |
+| Runtime Security | Defender for Cloud (Containers) | Microsoft threat detection |
 | Cloud Bridge | Azure Arc (agent v1.34.2) | Hybrid control plane |
 | Cloud Monitoring | Azure Monitor + Container Insights | Telemetry, KQL analytics, alerting |
 | Local Monitoring | Prometheus + Grafana (Helm) | Open-source observability stack |
@@ -125,23 +134,31 @@ flowchart LR
 - **NetworkPolicy**: Pod-level firewall — unauthorized pods blocked, Traefik allowed
 - **RBAC**: ServiceAccount with least privilege — `list pods=yes`, `delete pods=no`
 
+### Part 4 — GitOps and Security
+- **FluxCD**: Git-driven cluster reconciliation — deploy and scale via `git push`, no `kubectl apply`
+- **Trivy**: Container image scanning — 1 CRITICAL + 12 HIGH CVEs documented in `traefik/whoami:latest`
+- **Defender for Cloud**: Runtime security DaemonSet on all 3 nodes (namespace `mdc`)
+
 ---
 
 ## Lab Results
 
-| Metric | Part 1 | Part 2 | Part 3 |
-|--------|--------|--------|--------|
-| Cluster nodes | 3/3 Ready | — | — |
-| SLO Availability | 100% | — | — |
-| Azure cost | $0.00 | $0.00 | $0.00 |
-| Terraform state | Local | Remote (Azure Blob) | — |
-| CI/CD pipeline | None | Azure DevOps (4m 24s) | — |
-| Ingress + TLS | None | None | HTTPS verified |
-| HPA scale-up | None | None | 3→8 replicas (860% CPU) |
-| HPA scale-down | None | None | 8→2 replicas (5 min cooldown) |
-| NetworkPolicy | None | None | Unauthorized pods blocked |
-| RBAC | None | None | Least privilege verified |
-| Issues documented | 6 | 8 | 10 |
+| Metric | Part 1 | Part 2 | Part 3 | Part 4 |
+|--------|--------|--------|--------|--------|
+| Cluster nodes | 3/3 Ready | — | — | — |
+| SLO Availability | 100% | — | — | — |
+| Azure cost | $0.00 | $0.00 | $0.00 | $0.00 |
+| Terraform state | Local | Remote (Azure Blob) | — | — |
+| CI/CD pipeline | None | Azure DevOps (4m 24s) | — | — |
+| Ingress + TLS | None | None | HTTPS verified | — |
+| HPA scale-up | None | None | 3→8 replicas (860% CPU) | — |
+| HPA scale-down | None | None | 8→2 replicas (5 min cooldown) | — |
+| NetworkPolicy | None | None | Unauthorized pods blocked | — |
+| RBAC | None | None | Least privilege verified | — |
+| GitOps | None | None | None | FluxCD — git push → deploy |
+| Image scanning | None | None | None | 1 CRITICAL, 12 HIGH (Trivy) |
+| Runtime security | None | None | None | Defender DaemonSet (3 nodes) |
+| Issues documented | 6 | 8 | 10 | 11 |
 
 ---
 
@@ -152,33 +169,42 @@ sre-homelab-azure-arc/
 ├── README.md
 ├── .gitignore
 ├── terraform/
-│   ├── main.tf                         # RG, Log Analytics, Budget, Alerts, Remote State
-│   ├── variables.tf                    # Inputs with validation
-│   ├── outputs.tf                      # Resource IDs and sensitive keys
-│   └── .terraform.lock.hcl            # Provider version pinning
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   └── .terraform.lock.hcl
 ├── k8s/
-│   ├── deployment-whoami.yaml          # Demo app: limits, anti-affinity, probes
-│   ├── service-loadbalancer.yaml       # K3s Klipper LB on port 8080
-│   └── part3/
-│       ├── ingress-demo.yaml           # Traefik Ingress + TLS for demo.sre-lab.local
-│       ├── hpa-demo.yaml               # HPA: 2-8 replicas, CPU threshold 50%
-│       ├── network-policy.yaml         # NetworkPolicy: allow kube-system + monitoring
-│       ├── rbac-demo.yaml              # ServiceAccount + Role (least privilege)
-│       └── rbac-rolebinding.yaml       # RoleBinding: SA → Role
+│   ├── deployment-whoami.yaml
+│   ├── service-loadbalancer.yaml
+│   ├── part3/
+│   │   ├── ingress-demo.yaml
+│   │   ├── hpa-demo.yaml
+│   │   ├── network-policy.yaml
+│   │   ├── rbac-demo.yaml
+│   │   └── rbac-rolebinding.yaml
+│   └── part4/
+│       ├── flux/
+│       │   ├── flux-system/            # FluxCD bootstrap manifests (auto-generated)
+│       │   └── gitops-demo.yaml        # Flux Kustomization — watches k8s/part4/apps
+│       ├── apps/
+│       │   ├── namespace.yaml          # gitops-demo namespace
+│       │   ├── deployment.yaml         # whoami app — 3 replicas (scaled via git push)
+│       │   └── kustomization.yaml      # Kustomize entrypoint
+│       └── trivy/
+│           ├── whoami-scan.json        # Full Trivy report (JSON)
+│           └── whoami-scan.txt         # CRITICAL+HIGH only (table)
 ├── scripts/
-│   ├── install-k3s-master.sh           # Automated CP bootstrap with preflight checks
-│   └── install-k3s-worker.sh           # Worker join with hostname regex validation
+│   ├── install-k3s-master.sh
+│   └── install-k3s-worker.sh
 ├── pipelines/
-│   └── terraform-ci.yml                # Azure DevOps: validate+plan → approval → apply
+│   └── terraform-ci.yml
 ├── monitoring/
-│   └── kql-queries.md                  # 10 production-ready KQL queries + SLO
+│   └── kql-queries.md
 └── docs/
-    ├── POST-001-etcd-split-brain.md    # Blameless postmortem
-    ├── SRE_Case_Study_PL_v3.pdf        # Case study Polish (Parts 1-3)
-    ├── SRE_Case_Study_EN_v3.pdf        # Case study English (Parts 1-3)
-    ├── Przewodnik_W3_Ingress_HPA_NetworkPolicy_RBAC.pdf  # Technical guide Part 3
-    └── .archive/                       # Old versions (hidden, preserved locally)
-    └── Przewodnik_Techniczny_SRE_Lab.docx  # Technical guide (all technologies)
+    ├── POST-001-etcd-split-brain.md
+    ├── Przewodnik_Techniczny_SRE_Lab_KOMPLETNY.docx
+    ├── SRE_Case_Study_EN_v4.pdf
+    └── SRE_Case_Study_PL_v4.pdf
 ```
 
 ---
@@ -188,7 +214,7 @@ sre-homelab-azure-arc/
 ### Prerequisites
 - Machine with KVM/libvirt (128 GB RAM recommended, minimum 48 GB)
 - Azure subscription (free tier sufficient — $0.00 cost for this setup)
-- Azure CLI, Helm 3, Terraform >= 1.5, kubectl, openssl installed on host
+- Azure CLI, Helm 3, Terraform >= 1.5, kubectl, flux CLI, trivy installed on host
 - Azure DevOps organization (free tier)
 - GitHub account with SSH key configured
 
@@ -198,7 +224,6 @@ az login
 az ad sp create-for-rbac --name "sre-homelab-sp" \
   --role Contributor \
   --scopes /subscriptions/<SUBSCRIPTION_ID>
-# Add ARM_* env vars to ~/.bashrc on all machines
 ```
 
 ### Step 2 — Provision VMs
@@ -222,7 +247,7 @@ az group create --name terraform-state-rg --location westeurope
 az storage account create --name <unique> --resource-group terraform-state-rg \
   --sku Standard_LRS --min-tls-version TLS1_2
 az storage container create --name tfstate --account-name <unique> --auth-mode login
-cd terraform/ && terraform init -migrate-state && terraform apply
+cd terraform/ && terraform init && terraform apply
 ```
 
 ### Step 5 — Azure Arc + Container Insights
@@ -250,14 +275,11 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 kubectl create secret tls sre-lab-tls --cert=server.crt --key=server.key
 kubectl apply -f k8s/part3/ingress-demo.yaml
 echo "192.168.122.10 demo.sre-lab.local" | sudo tee -a /etc/hosts
-# Open https://demo.sre-lab.local in browser
 ```
 
 ### Step 8 — HPA (Part 3)
 ```bash
 kubectl apply -f k8s/part3/hpa-demo.yaml
-# Generate load to trigger autoscaling:
-sudo apt-get install -y apache2-utils
 ab -n 50000 -c 50 http://192.168.122.10:8080/
 # Watch: kubectl get hpa -w
 ```
@@ -267,7 +289,6 @@ ab -n 50000 -c 50 http://192.168.122.10:8080/
 kubectl apply -f k8s/part3/network-policy.yaml
 kubectl apply -f k8s/part3/rbac-demo.yaml
 kubectl apply -f k8s/part3/rbac-rolebinding.yaml
-# Verify:
 kubectl auth can-i list pods --as=system:serviceaccount:default:aras-demo-sa
 kubectl auth can-i delete pods --as=system:serviceaccount:default:aras-demo-sa
 ```
@@ -280,6 +301,41 @@ helm install monitoring prometheus-community/kube-prometheus-stack \
   --namespace monitoring --set grafana.adminPassword=SRE-Lab-2026
 ```
 
+### Step 11 — FluxCD GitOps (Part 4)
+```bash
+curl -s https://fluxcd.io/install.sh | sudo bash
+flux bootstrap git \
+  --url=ssh://git@github.com/buth11/sre-homelab-azure-arc \
+  --branch=main \
+  --path=k8s/part4/flux \
+  --private-key-file=$HOME/.ssh/github_sre
+flux get all
+kubectl get pods -n flux-system
+```
+
+### Step 12 — Trivy Image Scanning (Part 4)
+```bash
+curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+  | sudo sh -s -- -b /usr/local/bin
+trivy image traefik/whoami:latest \
+  --severity CRITICAL,HIGH \
+  --format table \
+  -o k8s/part4/trivy/whoami-scan.txt
+```
+
+### Step 13 — Defender for Cloud (Part 4)
+```bash
+az security pricing create --name Containers --tier Standard
+az k8s-extension create \
+  --name microsoft-defender-for-cloud \
+  --extension-type microsoft.azuredefender.kubernetes \
+  --scope cluster \
+  --cluster-name K3s-Homelab \
+  --resource-group SRE-Lab-RG \
+  --cluster-type connectedClusters
+kubectl get pods -n mdc
+```
+
 ---
 
 ## Cost Summary
@@ -290,6 +346,7 @@ helm install monitoring prometheus-community/kube-prometheus-stack \
 | Log Analytics (< 5 GB) | Free |
 | Azure Policy | Free |
 | Azure DevOps (free tier) | Free |
+| Defender for Containers | Free (30-day trial) |
 | Storage Account (Terraform state) | ~$0.01/month |
 | **Total** | **~$0.01/month** |
 
@@ -299,7 +356,7 @@ FinOps guardrail: $5 USD/month budget with 50% and 100% email alerts.
 
 ## Troubleshooting Log
 
-10 real issues documented with root cause, resolution, and prevention:
+11 real issues documented with root cause, resolution, and prevention:
 
 | ID | Issue | Resolution |
 |----|-------|-----------|
@@ -313,6 +370,7 @@ FinOps guardrail: $5 USD/month budget with 50% and 100% email alerts.
 | ISSUE-008 | Pipeline: permission for Variable Group | Click View → Permit (one-time) |
 | ISSUE-009 | `sudo` does not expand `~` in paths | Use full path `/home/buth11/` |
 | ISSUE-010 | HPA shows `<unknown>` CPU | Add `resources.requests` to Deployment |
+| ISSUE-011 | RBAC RoleBinding: `apiRef` instead of `apiGroup` | Correct field name in roleRef |
 
 ---
 
