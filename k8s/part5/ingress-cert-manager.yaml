@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aras-demo-cert-manager
+  namespace: default
+  annotations:
+    cert-manager.io/cluster-issuer: sre-lab-ca-issuer
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - demo.sre-lab.local
+    secretName: demo-sre-lab-tls
+  rules:
+  - host: demo.sre-lab.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: aras-demo-app
+            port:
+              number: 8080
