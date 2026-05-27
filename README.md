@@ -2,14 +2,16 @@
 
 > **A Proof-of-Value project demonstrating hybrid cloud orchestration, Kubernetes,
 > Infrastructure-as-Code, observability, FinOps, Policy as Code, CI/CD pipeline
-> automation, advanced Kubernetes operations, GitOps, and security scanning using K3s and Microsoft Azure Arc.**
+> automation, advanced Kubernetes operations, GitOps, security scanning, and automated
+> TLS certificate management using K3s and Microsoft Azure Arc.**
 
-![Part](https://img.shields.io/badge/Progress-Part%204%20Complete-0078d4)
+![Part](https://img.shields.io/badge/Progress-Part%205%20Complete-0078d4)
 ![Cost](https://img.shields.io/badge/Azure%20Cost-0.00%20USD-107c10)
 ![SLO](https://img.shields.io/badge/SLO-100%25%20Availability-107c10)
 ![Pipeline](https://img.shields.io/badge/CI%2FCD-Azure%20DevOps-0078d4)
 ![GitOps](https://img.shields.io/badge/GitOps-FluxCD%202.8.8-5468ff)
 ![Security](https://img.shields.io/badge/Security-Trivy%20%2B%20Defender-red)
+![TLS](https://img.shields.io/badge/TLS-cert--manager%20v1.20.2-brightgreen)
 
 ---
 
@@ -19,7 +21,7 @@ This project documents the design, deployment, and operation of a production-gra
 **hybrid Edge-to-Cloud environment** built on commodity hardware. A three-node Kubernetes
 cluster running on-premises (Olsztyn, Poland) is connected to Microsoft Azure through
 Azure Arc, enabling centralized governance, monitoring, policy enforcement, CI/CD
-automation, and GitOps from a single cloud control plane.
+automation, GitOps, and automated TLS management from a single cloud control plane.
 
 Built to demonstrate hands-on SRE competencies directly relevant to managing
 enterprise SaaS infrastructure at scale.
@@ -35,12 +37,13 @@ flowchart LR
         MASTER["k3s-master\n192.168.122.10\nControl Plane · 8 GB"]
         W1["k3s-worker1\n192.168.122.11\nWorker · 16 GB"]
         W2["k3s-worker2\n192.168.122.12\nWorker · 16 GB"]
-        TRAEFIK["Traefik Ingress\nHTTPS · TLS Termination\ndemo.sre-lab.local"]
+        TRAEFIK["Traefik Ingress\nHTTPS · cert-manager TLS\ndemo.sre-lab.local"]
         HPA["HPA · 2-8 replicas\nCPU threshold 50%"]
         NETPOL["NetworkPolicy\nLeast-privilege firewall"]
         RBAC["RBAC\nServiceAccount · Least privilege"]
         PROM["Prometheus + Grafana\nLocal Monitoring Stack"]
         FLUX["FluxCD 2.8.8\nGitOps Controller"]
+        CERTMGR["cert-manager v1.20.2\nAuto TLS · CA Issuer"]
         MDC["Defender for Cloud\nDaemonSet · mdc namespace"]
         MASTER --- W1
         MASTER --- W2
@@ -65,7 +68,6 @@ flowchart LR
         POL["Azure Policy\n2 policies · Compliant"]
         TF["Terraform Remote State\nsretfstate5496 · Blob Storage"]
         SP["Service Principal\nsre-homelab-sp · Contributor"]
-        COST["Cost Management\nFinOps · 0.00 USD spent"]
         DEF["Defender for Containers\nStandard · 30-day trial"]
         ARC --> MON
         ARC --> POL
@@ -89,6 +91,7 @@ flowchart LR
 | OS | Ubuntu Server 24.04 LTS | All cluster nodes |
 | Kubernetes | K3s v1.35.4+k3s1 | Lightweight K8s distribution |
 | Ingress | Traefik (built-in K3s) | HTTPS routing + TLS termination |
+| TLS Management | cert-manager v1.20.2 | Automatic certificate issuance and renewal |
 | Autoscaling | HPA (autoscaling/v2) | CPU-based pod autoscaling 2-8 replicas |
 | Network Security | NetworkPolicy | Pod-level firewall (least privilege) |
 | Access Control | RBAC + ServiceAccount | Application-level least privilege |
@@ -126,7 +129,6 @@ flowchart LR
 - Service Principal — non-interactive auth (no device codes)
 - Azure DevOps 2-stage pipeline: plan → approval gate → apply (4m 24s)
 - SSH key auth to GitHub — no more tokens
-- 8 real issues documented with root cause and resolution
 
 ### Part 3 — Advanced Kubernetes Operations
 - **Ingress + TLS**: Traefik routes HTTPS by domain — `https://demo.sre-lab.local`
@@ -136,29 +138,39 @@ flowchart LR
 
 ### Part 4 — GitOps and Security
 - **FluxCD**: Git-driven cluster reconciliation — deploy and scale via `git push`, no `kubectl apply`
-- **Trivy**: Container image scanning — 1 CRITICAL + 12 HIGH CVEs documented in `traefik/whoami:latest`
+- **Trivy**: Container image scanning — 1 CRITICAL + 12 HIGH CVEs in `traefik/whoami:latest`
 - **Defender for Cloud**: Runtime security DaemonSet on all 3 nodes (namespace `mdc`)
+
+### Part 5 — Automated TLS Certificate Management
+- **cert-manager v1.20.2**: Installed via Helm, 3 pods (controller, cainjector, webhook)
+- **ClusterIssuers**: selfsigned-issuer (bootstrap) + sre-lab-ca-issuer (local CA)
+- **Automatic issuance**: certificate issued in 22 seconds from Ingress annotation alone
+- **Auto-renewal**: renewBefore configured — cert-manager renews 30 days before expiry, zero manual intervention
+- **vs Part 3**: eliminated manual openssl + kubectl create secret workflow entirely
 
 ---
 
 ## Lab Results
 
-| Metric | Part 1 | Part 2 | Part 3 | Part 4 |
-|--------|--------|--------|--------|--------|
-| Cluster nodes | 3/3 Ready | — | — | — |
-| SLO Availability | 100% | — | — | — |
-| Azure cost | $0.00 | $0.00 | $0.00 | $0.00 |
-| Terraform state | Local | Remote (Azure Blob) | — | — |
-| CI/CD pipeline | None | Azure DevOps (4m 24s) | — | — |
-| Ingress + TLS | None | None | HTTPS verified | — |
-| HPA scale-up | None | None | 3→8 replicas (860% CPU) | — |
-| HPA scale-down | None | None | 8→2 replicas (5 min cooldown) | — |
-| NetworkPolicy | None | None | Unauthorized pods blocked | — |
-| RBAC | None | None | Least privilege verified | — |
-| GitOps | None | None | None | FluxCD — git push → deploy |
-| Image scanning | None | None | None | 1 CRITICAL, 12 HIGH (Trivy) |
-| Runtime security | None | None | None | Defender DaemonSet (3 nodes) |
-| Issues documented | 6 | 8 | 10 | 11 |
+| Metric | Part 1 | Part 2 | Part 3 | Part 4 | Part 5 |
+|--------|--------|--------|--------|--------|--------|
+| Cluster nodes | 3/3 Ready | — | — | — | — |
+| SLO Availability | 100% | — | — | — | — |
+| Azure cost | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 |
+| Terraform state | Local | Remote (Azure Blob) | — | — | — |
+| CI/CD pipeline | None | Azure DevOps (4m 24s) | — | — | — |
+| Ingress + TLS | None | None | Manual self-signed | — | cert-manager auto |
+| HPA scale-up | None | None | 3→8 replicas (860% CPU) | — | — |
+| HPA scale-down | None | None | 8→2 replicas (5 min) | — | — |
+| NetworkPolicy | None | None | Unauthorized blocked | — | — |
+| RBAC | None | None | Least privilege verified | — | — |
+| GitOps | None | None | None | FluxCD git push→deploy | — |
+| Image scanning | None | None | None | 1 CRITICAL, 12 HIGH | — |
+| Runtime security | None | None | None | Defender (3 nodes) | — |
+| TLS management | None | None | Manual openssl | — | Auto cert-manager |
+| Cert issuance time | — | — | Manual | — | 22 seconds |
+| Auto-renewal | — | — | No | — | Yes (renewBefore) |
+| Issues documented | 6 | 8 | 10 | 11 | 12 |
 
 ---
 
@@ -182,17 +194,21 @@ sre-homelab-azure-arc/
 │   │   ├── network-policy.yaml
 │   │   ├── rbac-demo.yaml
 │   │   └── rbac-rolebinding.yaml
-│   └── part4/
-│       ├── flux/
-│       │   ├── flux-system/            # FluxCD bootstrap manifests (auto-generated)
-│       │   └── gitops-demo.yaml        # Flux Kustomization — watches k8s/part4/apps
-│       ├── apps/
-│       │   ├── namespace.yaml          # gitops-demo namespace
-│       │   ├── deployment.yaml         # whoami app — 3 replicas (scaled via git push)
-│       │   └── kustomization.yaml      # Kustomize entrypoint
-│       └── trivy/
-│           ├── whoami-scan.json        # Full Trivy report (JSON)
-│           └── whoami-scan.txt         # CRITICAL+HIGH only (table)
+│   ├── part4/
+│   │   ├── flux/
+│   │   │   ├── flux-system/
+│   │   │   └── gitops-demo.yaml
+│   │   ├── apps/
+│   │   │   ├── namespace.yaml
+│   │   │   ├── deployment.yaml
+│   │   │   └── kustomization.yaml
+│   │   └── trivy/
+│   │       ├── whoami-scan.json
+│   │       └── whoami-scan.txt
+│   └── part5/
+│       ├── clusterissuer-selfsigned.yaml   # Bootstrap self-signed CA
+│       ├── clusterissuer-ca.yaml           # Local CA + sre-lab-ca-issuer
+│       └── ingress-cert-manager.yaml       # Ingress with cert-manager annotation
 ├── scripts/
 │   ├── install-k3s-master.sh
 │   └── install-k3s-worker.sh
@@ -203,8 +219,9 @@ sre-homelab-azure-arc/
 └── docs/
     ├── POST-001-etcd-split-brain.md
     ├── Przewodnik_Techniczny_SRE_Lab_KOMPLETNY.docx
-    ├── SRE_Case_Study_EN_v4.pdf
-    └── SRE_Case_Study_PL_v4.pdf
+    ├── SRE_Case_Study_EN_v5.pdf
+    ├── SRE_Case_Study_PL_v5.pdf
+    └── .archive/
 ```
 
 ---
@@ -218,122 +235,33 @@ sre-homelab-azure-arc/
 - Azure DevOps organization (free tier)
 - GitHub account with SSH key configured
 
-### Step 1 — Service Principal
-```bash
-az login
-az ad sp create-for-rbac --name "sre-homelab-sp" \
-  --role Contributor \
-  --scopes /subscriptions/<SUBSCRIPTION_ID>
-```
+### Steps 1–13: Parts 1–4
+*(See previous case study docs or git history)*
 
-### Step 2 — Provision VMs
-```
-k3s-master:  192.168.122.10  4 vCPU  8 GB   40 GB
-k3s-worker1: 192.168.122.11  4 vCPU  16 GB  60 GB
-k3s-worker2: 192.168.122.12  4 vCPU  16 GB  60 GB
-```
-Ubuntu Server 24.04 LTS, static IPs, OpenSSH enabled.
-
-### Step 3 — K3s Cluster
+### Step 14 — cert-manager (Part 5)
 ```bash
-./scripts/install-k3s-master.sh
-./scripts/install-k3s-worker.sh k3s-worker1 192.168.122.11 <TOKEN>
-./scripts/install-k3s-worker.sh k3s-worker2 192.168.122.12 <TOKEN>
-```
+# Install cert-manager via Helm
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --set crds.enabled=true
 
-### Step 4 — Terraform Remote State + Azure Infrastructure
-```bash
-az group create --name terraform-state-rg --location westeurope
-az storage account create --name <unique> --resource-group terraform-state-rg \
-  --sku Standard_LRS --min-tls-version TLS1_2
-az storage container create --name tfstate --account-name <unique> --auth-mode login
-cd terraform/ && terraform init && terraform apply
-```
+# Verify
+kubectl get pods -n cert-manager
 
-### Step 5 — Azure Arc + Container Insights
-```bash
-az connectedk8s connect --name K3s-Homelab \
-  --resource-group SRE-Lab-RG --location westeurope
-az k8s-extension create --name azuremonitor-containers \
-  --cluster-name K3s-Homelab --resource-group SRE-Lab-RG \
-  --cluster-type connectedClusters \
-  --extension-type Microsoft.AzureMonitor.Containers
-```
+# Apply ClusterIssuers
+kubectl apply -f k8s/part5/clusterissuer-selfsigned.yaml
+kubectl apply -f k8s/part5/clusterissuer-ca.yaml
+kubectl get clusterissuer
 
-### Step 6 — Demo Application
-```bash
-kubectl apply -f k8s/deployment-whoami.yaml
-kubectl apply -f k8s/service-loadbalancer.yaml
-```
+# Apply Ingress with cert-manager annotation
+kubectl apply -f k8s/part5/ingress-cert-manager.yaml
 
-### Step 7 — Ingress with TLS (Part 3)
-```bash
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout server.key -out server.crt \
-  -subj "/CN=demo.sre-lab.local/O=SRE-Lab" \
-  -addext "subjectAltName=DNS:demo.sre-lab.local"
-kubectl create secret tls sre-lab-tls --cert=server.crt --key=server.key
-kubectl apply -f k8s/part3/ingress-demo.yaml
-echo "192.168.122.10 demo.sre-lab.local" | sudo tee -a /etc/hosts
-```
-
-### Step 8 — HPA (Part 3)
-```bash
-kubectl apply -f k8s/part3/hpa-demo.yaml
-ab -n 50000 -c 50 http://192.168.122.10:8080/
-# Watch: kubectl get hpa -w
-```
-
-### Step 9 — NetworkPolicy + RBAC (Part 3)
-```bash
-kubectl apply -f k8s/part3/network-policy.yaml
-kubectl apply -f k8s/part3/rbac-demo.yaml
-kubectl apply -f k8s/part3/rbac-rolebinding.yaml
-kubectl auth can-i list pods --as=system:serviceaccount:default:aras-demo-sa
-kubectl auth can-i delete pods --as=system:serviceaccount:default:aras-demo-sa
-```
-
-### Step 10 — Prometheus + Grafana
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-kubectl create namespace monitoring
-helm install monitoring prometheus-community/kube-prometheus-stack \
-  --namespace monitoring --set grafana.adminPassword=SRE-Lab-2026
-```
-
-### Step 11 — FluxCD GitOps (Part 4)
-```bash
-curl -s https://fluxcd.io/install.sh | sudo bash
-flux bootstrap git \
-  --url=ssh://git@github.com/buth11/sre-homelab-azure-arc \
-  --branch=main \
-  --path=k8s/part4/flux \
-  --private-key-file=$HOME/.ssh/github_sre
-flux get all
-kubectl get pods -n flux-system
-```
-
-### Step 12 — Trivy Image Scanning (Part 4)
-```bash
-curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-  | sudo sh -s -- -b /usr/local/bin
-trivy image traefik/whoami:latest \
-  --severity CRITICAL,HIGH \
-  --format table \
-  -o k8s/part4/trivy/whoami-scan.txt
-```
-
-### Step 13 — Defender for Cloud (Part 4)
-```bash
-az security pricing create --name Containers --tier Standard
-az k8s-extension create \
-  --name microsoft-defender-for-cloud \
-  --extension-type microsoft.azuredefender.kubernetes \
-  --scope cluster \
-  --cluster-name K3s-Homelab \
-  --resource-group SRE-Lab-RG \
-  --cluster-type connectedClusters
-kubectl get pods -n mdc
+# Verify certificate (issued automatically in ~22s)
+kubectl get certificate -n default
+kubectl describe certificate demo-sre-lab-tls -n default
 ```
 
 ---
@@ -347,16 +275,15 @@ kubectl get pods -n mdc
 | Azure Policy | Free |
 | Azure DevOps (free tier) | Free |
 | Defender for Containers | Free (30-day trial) |
+| cert-manager | Free (open-source) |
 | Storage Account (Terraform state) | ~$0.01/month |
 | **Total** | **~$0.01/month** |
-
-FinOps guardrail: $5 USD/month budget with 50% and 100% email alerts.
 
 ---
 
 ## Troubleshooting Log
 
-11 real issues documented with root cause, resolution, and prevention:
+12 real issues documented:
 
 | ID | Issue | Resolution |
 |----|-------|-----------|
@@ -371,6 +298,7 @@ FinOps guardrail: $5 USD/month budget with 50% and 100% email alerts.
 | ISSUE-009 | `sudo` does not expand `~` in paths | Use full path `/home/buth11/` |
 | ISSUE-010 | HPA shows `<unknown>` CPU | Add `resources.requests` to Deployment |
 | ISSUE-011 | RBAC RoleBinding: `apiRef` instead of `apiGroup` | Correct field name in roleRef |
+| ISSUE-012 | cert-manager webhook: duration < 1h rejected | Minimum duration 1h5m, renewBefore 6m |
 
 ---
 
