@@ -1,0 +1,19 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Schedule
+metadata:
+  name: aras-demo-schedule
+  namespace: default
+spec:
+  schedule: "@every 30s"
+  concurrencyPolicy: Forbid
+  historyLimit: 5
+  type: PodChaos
+  podChaos:
+    action: pod-kill
+    mode: one
+    selector:
+      namespaces:
+      - default
+      labelSelectors:
+        app: aras-demo
+    duration: "10s"
