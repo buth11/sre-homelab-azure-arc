@@ -1,0 +1,37 @@
+replicaCount: 2
+
+image:
+  repository: traefik/whoami
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 8080
+  targetPort: 80
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+ingress:
+  enabled: true
+  host: demo.sre-lab.local
+  tlsSecret: demo-sre-lab-tls
+  certManagerIssuer: sre-lab-ca-issuer
+
+networkPolicy:
+  enabled: true
+
+rbac:
+  enabled: true
+
+autoscaling:
+  enabled: false
+
+affinity:
+  podAntiAffinity: true

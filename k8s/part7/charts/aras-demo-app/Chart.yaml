@@ -1,0 +1,9 @@
+apiVersion: v2
+name: aras-demo-app
+description: Demo application for SRE Homelab - whoami with production-grade config
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Bartosz Suszko
+    email: buth11@example.com

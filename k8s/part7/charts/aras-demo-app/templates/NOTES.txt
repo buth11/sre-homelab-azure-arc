@@ -1,0 +1,18 @@
+aras-demo-app deployed successfully!
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Replicas: {{ .Values.replicaCount }}
+
+Access:
+{{- if .Values.ingress.enabled }}
+  HTTPS: https://{{ .Values.ingress.host }}
+{{- end }}
+  HTTP: kubectl port-forward svc/{{ .Release.Name }} 8080:{{ .Values.service.port }}
+
+Check status:
+  kubectl get pods -l app={{ .Release.Name }}
+  kubectl get svc {{ .Release.Name }}
+{{- if .Values.ingress.enabled }}
+  kubectl get certificate {{ .Values.ingress.tlsSecret }}
+{{- end }}
